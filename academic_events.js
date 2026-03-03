@@ -649,14 +649,14 @@ ACADEMIC_EVENTS_PRIMARY = [
     type: "special",
   },
   {
-    title: "ArrowsCharity Event Replacement Holiday",
+    title: "Arrows Charity Event Replacement Holiday",
     start: "2026-08-24",
     end: "2026-08-24",
     year: "All",
     type: "holiday",
   },
   {
-    title: "Prophet Muhammad's Birthday",
+    title: "Prophet Muhammad's Birthday Holiday",
     start: "2026-08-25",
     end: "2026-08-25",
     year: "All",

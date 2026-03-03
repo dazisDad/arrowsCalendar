@@ -28,10 +28,14 @@
 
         /* 기간 중 첫날이 아닌 날의 배경 스타일 */
         .event-duration-bg {
-            height: 4px;
+            height: 8px;
             margin-bottom: 2px;
             border-radius: 2px;
             opacity: 0.3;
+            transition: opacity 0.2s;
+        }
+        .event-duration-bg:hover {
+            opacity: 0.6;
         }
 
         .event-holiday { background-color: #fee2e2; color: #991b1b; border-left: 3px solid #ef4444; }
@@ -272,6 +276,27 @@ function filterEventsByHolidayPriority(events) {
     return events.filter(e => e.type === 'holiday' || e.start === e.end);
 }
 
+// Would this event actually appear on the calendar this day? (weekend + holiday rules)
+function wouldEventShowOnDay(event, dateStr, filter) {
+    if (!shouldShowEventOnDay(event, dateStr)) return false;
+    if (event.type === 'holiday' || event.start === event.end) return true;
+    const dayEvents = getAcademicEvents().filter(e =>
+        eventMatchesYearFilter(e, filter) && eventMatchesTypeFilter(e) && shouldShowEventOnDay(e, dateStr)
+    );
+    const hasHoliday = dayEvents.some(e => e.type === 'holiday');
+    return !hasHoliday;
+}
+
+function getFirstVisibleDayInMonth(event, year, month, filter) {
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        if (dateStr < event.start || dateStr > event.end) continue;
+        if (wouldEventShowOnDay(event, dateStr, filter)) return dateStr;
+    }
+    return null;
+}
+
 function getEventsForMonth(year, month, filter) {
     const monthStart = new Date(year, month, 1);
     const monthEnd = new Date(year, month + 1, 0);
@@ -334,7 +359,8 @@ function renderMonthly() {
         dayEvents = filterEventsByHolidayPriority(dayEvents);
         
         dayEvents.forEach(event => {
-            const isFirstDay = event.start === dateStr;
+            const firstVisibleDay = getFirstVisibleDayInMonth(event, year, month, filter);
+            const isFirstDay = firstVisibleDay !== null && dateStr === firstVisibleDay;
             const eventDiv = document.createElement('div');
             
             if (isFirstDay) {
