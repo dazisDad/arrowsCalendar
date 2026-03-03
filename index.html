@@ -274,6 +274,11 @@ function getAcademicEvents() {
     return document.getElementById('schoolLevel').value === 'primary' ? ACADEMIC_EVENTS_PRIMARY : ACADEMIC_EVENTS;
 }
 
+function formatDateForDisplay(dateStr) {
+    const [y, m, d] = dateStr.split('-');
+    return `${d}-${m}-${y}`;
+}
+
 function updateYearFilterOptions() {
     const sel = document.getElementById('yearFilter');
     const opts = document.getElementById('schoolLevel').value === 'primary' ? YEAR_OPTIONS_PRIMARY : YEAR_OPTIONS_SECONDARY;
@@ -372,9 +377,8 @@ function renderMonthly() {
             const eventDiv = document.createElement('div');
             
             if (isFirstDay) {
-                const endDateObj = new Date(event.end);
                 const isOneDay = event.start === event.end;
-                const endText = isOneDay ? "" : ` (~${endDateObj.getMonth() + 1}/${endDateObj.getDate()})`;
+                const endText = isOneDay ? "" : ` (~${formatDateForDisplay(event.end)})`;
                 
                 eventDiv.className = `event-tag event-${event.type}`;
                 eventDiv.innerText = `${event.title}${endText}`;
@@ -474,8 +478,8 @@ function buildYearlyEventsBlock(year, m, filter) {
         item.className = 'event-item';
         item.onclick = () => showDetail(event);
         const dateStr = event.start === event.end 
-            ? event.start.replace(/-/g, '.') 
-            : `${event.start.replace(/-/g, '.')} - ${event.end.replace(/-/g, '.')}`;
+            ? formatDateForDisplay(event.start) 
+            : `${formatDateForDisplay(event.start)} - ${formatDateForDisplay(event.end)}`;
         const color = colorMap[event.type] || '#94a3b8';
         item.innerHTML = `
             <span class="event-color" style="background:${color}"></span>
@@ -515,8 +519,8 @@ function changeMonth(offset) {
 
 function showDetail(event) {
     document.getElementById('modalTitle').innerText = event.title;
-    const startStr = event.start.replace(/-/g, '.');
-    const endStr = event.end.replace(/-/g, '.');
+    const startStr = formatDateForDisplay(event.start);
+    const endStr = formatDateForDisplay(event.end);
     document.getElementById('modalDate').innerText = startStr === endStr ? startStr : `${startStr} - ${endStr}`;
     
     document.getElementById('modalDesc').innerHTML = `
