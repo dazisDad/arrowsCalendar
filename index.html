@@ -80,6 +80,10 @@
         </div>
         
         <div class="flex flex-wrap items-center gap-4">
+            <select id="schoolLevel" class="bg-white border border-slate-300 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                <option value="primary">Primary</option>
+                <option value="secondary" selected>Secondary</option>
+            </select>
             <select id="yearFilter" class="bg-white border border-slate-300 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
                 <option value="All">All Years</option>
                 <option value="Year 7">Year 7</option>
@@ -202,9 +206,75 @@ const ACADEMIC_EVENTS = [
     { title: "Year-End Break", start: "2026-11-30", end: "2026-12-31", year: "All", type: "holiday" }
 ];
 
+/** * [Primary School Data] 
+ */
+ const ACADEMIC_EVENTS_PRIMARY = [
+    { title: "School Starts", start: "2026-01-05", end: "2026-01-05", year: "All", type: "default" },
+    { title: "Thaipusam Holiday", start: "2026-02-02", end: "2026-02-02", year: "All", type: "holiday" },
+    { title: "Fire Drill Week", start: "2026-02-09", end: "2026-02-13", year: "All", type: "default" },
+    { title: "Chinese New Year Holiday", start: "2026-02-16", end: "2026-02-20", year: "All", type: "holiday" },
+    { title: "Topical Test 1", start: "2026-03-02", end: "2026-03-13", year: "All", type: "exam" },
+    { title: "First Semester Break", start: "2026-03-16", end: "2026-03-20", year: "All", type: "holiday" },
+    { title: "Hari Raya Holiday", start: "2026-03-23", end: "2026-03-25", year: "All", type: "holiday" },
+    { title: "Children's Camp", start: "2026-04-22", end: "2026-04-24", year: "All", type: "special" },
+    { title: "Labour Day Holiday", start: "2026-05-01", end: "2026-05-01", year: "All", type: "holiday" },
+    { title: "Semester 1 Exam", start: "2026-05-04", end: "2026-05-14", year: "All", type: "exam" },
+    { title: "Teachers' Day Celebration", start: "2026-05-15", end: "2026-05-15", year: "All", type: "special" },
+    { title: "Lower Primary Sports Tournament", start: "2026-05-18", end: "2026-05-22", year: "Year 1-3", type: "special" },
+    { title: "Upper Primary Sports Tournament", start: "2026-05-25", end: "2026-05-29", year: "Year 4-6", type: "special" },
+    { title: "Hari Raya Haji Holiday", start: "2026-05-27", end: "2026-05-27", year: "All", type: "holiday" },
+    { title: "Mid-Year Break", start: "2026-06-01", end: "2026-06-12", year: "All", type: "holiday" },
+    { title: "Upper Primary Sports Tournament (Cont.)", start: "2026-06-15", end: "2026-06-19", year: "Year 4-6", type: "special" },
+    { title: "Parent-Teachers Meeting 1", start: "2026-06-16", end: "2026-06-16", year: "All", type: "special" },
+    { title: "Awal Muharram Holiday", start: "2026-06-17", end: "2026-06-17", year: "All", type: "holiday" },
+    { title: "Sports Tournament - Finals", start: "2026-06-22", end: "2026-06-26", year: "All", type: "special" },
+    { title: "Sports Day", start: "2026-07-04", end: "2026-07-04", year: "All", type: "special" },
+    { title: "Sports Day Replacement Holiday", start: "2026-07-06", end: "2026-07-06", year: "All", type: "holiday" },
+    { title: "Topical Test 2", start: "2026-07-20", end: "2026-07-30", year: "All", type: "exam" },
+    { title: "Field Trip", start: "2026-07-31", end: "2026-07-31", year: "All", type: "special" },
+    { title: "Arrows Charity Event", start: "2026-08-22", end: "2026-08-22", year: "All", type: "special" },
+    { title: "Charity Replacement Holiday", start: "2026-08-24", end: "2026-08-24", year: "All", type: "holiday" },
+    { title: "Prophet Muhammad's Birthday", start: "2026-08-25", end: "2026-08-25", year: "All", type: "holiday" },
+    { title: "Merdeka Holiday", start: "2026-08-31", end: "2026-08-31", year: "All", type: "holiday" },
+    { title: "Patriotic Week", start: "2026-09-01", end: "2026-09-04", year: "All", type: "special" },
+    { title: "Second Semester Break", start: "2026-09-07", end: "2026-09-11", year: "All", type: "holiday" },
+    { title: "Malaysia Day Holiday", start: "2026-09-16", end: "2026-09-16", year: "All", type: "holiday" },
+    { title: "Malaysia Day Celebration", start: "2026-09-18", end: "2026-09-18", year: "All", type: "special" },
+    { title: "Semester 2 Exam", start: "2026-09-28", end: "2026-10-09", year: "All", type: "exam" },
+    { title: "Deepavali Holiday", start: "2026-11-09", end: "2026-11-11", year: "All", type: "holiday" },
+    { title: "Appreciation Night / Y6 Graduation", start: "2026-11-20", end: "2026-11-20", year: "All", type: "special" },
+    { title: "Parent-Teachers Meeting 2", start: "2026-11-24", end: "2026-11-24", year: "All", type: "special" },
+    { title: "Class Party", start: "2026-11-27", end: "2026-11-27", year: "All", type: "special" },
+    { title: "Year-End Break", start: "2026-11-30", end: "2026-12-31", year: "All", type: "holiday" }
+];
+
 let currentDate = new Date(2026, 0, 1);
 const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const typePriority = { holiday: 4, exam: 3, special: 2, default: 1 };
+
+const YEAR_OPTIONS_PRIMARY = [
+    { value: 'All', label: 'All Years' },
+    { value: 'Year 1-3', label: 'Year 1-3' },
+    { value: 'Year 4-6', label: 'Year 4-6' }
+];
+const YEAR_OPTIONS_SECONDARY = [
+    { value: 'All', label: 'All Years' },
+    { value: 'Year 7', label: 'Year 7' },
+    { value: 'Year 8', label: 'Year 8' },
+    { value: 'Year 9', label: 'Year 9' },
+    { value: 'Year 10', label: 'Year 10' },
+    { value: 'Year 11', label: 'Year 11' }
+];
+
+function getAcademicEvents() {
+    return document.getElementById('schoolLevel').value === 'primary' ? ACADEMIC_EVENTS_PRIMARY : ACADEMIC_EVENTS;
+}
+
+function updateYearFilterOptions() {
+    const sel = document.getElementById('yearFilter');
+    const opts = document.getElementById('schoolLevel').value === 'primary' ? YEAR_OPTIONS_PRIMARY : YEAR_OPTIONS_SECONDARY;
+    sel.innerHTML = opts.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+}
 
 function getDominantEvent(events) {
     if (!events.length) return null;
@@ -233,7 +303,7 @@ function filterEventsByHolidayPriority(events) {
 function getEventsForMonth(year, month, filter) {
     const monthStart = new Date(year, month, 1);
     const monthEnd = new Date(year, month + 1, 0);
-    const events = ACADEMIC_EVENTS.filter(event => {
+    const events = getAcademicEvents().filter(event => {
         const matchesFilter = filter === 'All' || event.year.includes(filter) || event.year === 'All';
         if (!matchesFilter) return false;
         const start = new Date(event.start);
@@ -287,7 +357,7 @@ function renderMonthly() {
         dateSpan.className = 'text-sm font-bold mb-2 ' + (dayOfWeek === 0 ? 'text-red-500' : dayOfWeek === 6 ? 'text-blue-500' : 'text-slate-400');
         dayDiv.appendChild(dateSpan);
         
-        let dayEvents = ACADEMIC_EVENTS.filter(event => {
+        let dayEvents = getAcademicEvents().filter(event => {
             const matchesFilter = filter === 'All' || event.year.includes(filter) || event.year === 'All';
             return matchesFilter && shouldShowEventOnDay(event, dateStr);
         });
@@ -348,10 +418,10 @@ function buildYearlyCalendarBlock(year, m, filter) {
     
     for (let day = 1; day <= daysInMonth; day++) {
         const dateStr = `${year}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        let dayEvents = ACADEMIC_EVENTS.filter(event => {
-            const matchesFilter = filter === 'All' || event.year.includes(filter) || event.year === 'All';
-            return matchesFilter && shouldShowEventOnDay(event, dateStr);
-        });
+            let dayEvents = getAcademicEvents().filter(event => {
+                const matchesFilter = filter === 'All' || event.year.includes(filter) || event.year === 'All';
+                return matchesFilter && shouldShowEventOnDay(event, dateStr);
+            });
         dayEvents = filterEventsByHolidayPriority(dayEvents);
         
         const cell = document.createElement('div');
@@ -462,9 +532,16 @@ function closeModal() {
     document.getElementById('eventModal').classList.remove('flex');
 }
 
+document.getElementById('schoolLevel').addEventListener('change', () => {
+    updateYearFilterOptions();
+    renderCalendar();
+});
 document.getElementById('viewMode').addEventListener('change', renderCalendar);
 document.getElementById('yearFilter').addEventListener('change', renderCalendar);
-window.onload = renderCalendar;
+window.onload = () => {
+    updateYearFilterOptions();
+    renderCalendar();
+};
 </script>
 </body>
 </html>
