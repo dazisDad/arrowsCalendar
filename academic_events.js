@@ -1,4 +1,4 @@
-ACADEMIC_EVENTS = [
+ACADEMIC_EVENTS_SECONDARY = [
   // 1월
   {
     title: "School Starts",
