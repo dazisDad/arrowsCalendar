@@ -1,4 +1,7 @@
-let currentDate = new Date(2026, 0, 1);
+document.title = `${SCHOOL} ${ACADEMIC_YEAR} Academic Calendar`;
+document.getElementById('calendarTitle').textContent = `${SCHOOL} Academic Calendar ${ACADEMIC_YEAR}`;
+
+let currentDate = new Date(ACADEMIC_YEAR, 0, 1);
 const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const typePriority = { holiday: 4, exam: 3, special: 2, default: 1 };
 
@@ -268,6 +271,9 @@ function buildYearlyEventsBlock(year, m, filter) {
     const eventsPanel = document.createElement('div');
     eventsPanel.className = 'yearly-month-events';
     eventsPanel.style.setProperty('--month-index', m);
+    if (monthEvents.length === 0) {
+        eventsPanel.classList.add('yearly-month-events-empty');
+    }
     monthEvents.forEach(event => {
         const item = document.createElement('div');
         item.className = 'event-item';

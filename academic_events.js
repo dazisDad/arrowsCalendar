@@ -1,4 +1,7 @@
-ACADEMIC_EVENTS_SECONDARY = [
+const SCHOOL = 'Arrows';
+const ACADEMIC_YEAR = 2026;
+
+const ACADEMIC_EVENTS_SECONDARY = [
   // 1월
   {
     title: "School Starts",
@@ -479,7 +482,7 @@ ACADEMIC_EVENTS_SECONDARY = [
   },
 ];
 
-ACADEMIC_EVENTS_PRIMARY = [
+const ACADEMIC_EVENTS_PRIMARY = [
   {
     title: "School Starts",
     start: "2026-01-05",
