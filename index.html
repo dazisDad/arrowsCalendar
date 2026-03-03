@@ -290,6 +290,22 @@ function getDominantEvent(events) {
     return [...events].sort((a, b) => (typePriority[b.type] || 0) - (typePriority[a.type] || 0))[0];
 }
 
+/** event.year가 "Year 10-11" 같은 범위인 경우, filter "Year 10" / "Year 11" 둘 다 매칭 */
+function eventMatchesYearFilter(event, filter) {
+    if (filter === 'All' || event.year === 'All') return true;
+    if (event.year === filter) return true;
+    const rangeMatch = event.year.match(/^Year (\d+)-(\d+)$/);
+    if (rangeMatch) {
+        const [, start, end] = rangeMatch.map(Number);
+        const filterMatch = filter.match(/^Year (\d+)$/);
+        if (filterMatch) {
+            const yearNum = parseInt(filterMatch[1], 10);
+            return yearNum >= start && yearNum <= end;
+        }
+    }
+    return event.year.includes(filter);
+}
+
 // Multi-day events: hide on Sat/Sun. Single-day events: always show (even on weekend).
 function shouldShowEventOnDay(event, dateStr) {
     const start = new Date(event.start);
@@ -313,8 +329,7 @@ function getEventsForMonth(year, month, filter) {
     const monthStart = new Date(year, month, 1);
     const monthEnd = new Date(year, month + 1, 0);
     const events = getAcademicEvents().filter(event => {
-        const matchesFilter = filter === 'All' || event.year.includes(filter) || event.year === 'All';
-        if (!matchesFilter) return false;
+        if (!eventMatchesYearFilter(event, filter)) return false;
         const start = new Date(event.start);
         const end = new Date(event.end);
         return start <= monthEnd && end >= monthStart;
@@ -367,8 +382,7 @@ function renderMonthly() {
         dayDiv.appendChild(dateSpan);
         
         let dayEvents = getAcademicEvents().filter(event => {
-            const matchesFilter = filter === 'All' || event.year.includes(filter) || event.year === 'All';
-            return matchesFilter && shouldShowEventOnDay(event, dateStr);
+            return eventMatchesYearFilter(event, filter) && shouldShowEventOnDay(event, dateStr);
         });
         dayEvents = filterEventsByHolidayPriority(dayEvents);
         
@@ -428,8 +442,7 @@ function buildYearlyCalendarBlock(year, m, filter) {
     for (let day = 1; day <= daysInMonth; day++) {
         const dateStr = `${year}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             let dayEvents = getAcademicEvents().filter(event => {
-                const matchesFilter = filter === 'All' || event.year.includes(filter) || event.year === 'All';
-                return matchesFilter && shouldShowEventOnDay(event, dateStr);
+                return eventMatchesYearFilter(event, filter) && shouldShowEventOnDay(event, dateStr);
             });
         dayEvents = filterEventsByHolidayPriority(dayEvents);
         
