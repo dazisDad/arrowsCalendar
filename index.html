@@ -45,8 +45,7 @@
         .bg-special-dim { background-color: #f59e0b; }
         .bg-default-dim { background-color: #94a3b8; }
 
-        /* Yearly view: 4 months per row, 3 rows */
-        .yearly-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+        /* Yearly view: 4 cols, row pairs = 4 calendars then 4 event lists */
         .yearly-month { background: white; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
         .yearly-month-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
         .yearly-day-cell { min-height: 28px; font-size: 0.65rem; padding: 2px; border: 1px solid #f1f5f9; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; cursor: default; }
@@ -59,8 +58,15 @@
         .yearly-day-cell .color-bar.exam { background: #3b82f6; }
         .yearly-day-cell .color-bar.special { background: #f59e0b; }
         .yearly-day-cell .color-bar.default { background: #94a3b8; }
-        @media (max-width: 1024px) { .yearly-grid { grid-template-columns: repeat(2, 1fr); } }
-        @media (max-width: 640px) { .yearly-grid { grid-template-columns: 1fr; } }
+        .yearly-combined-grid { display: grid; grid-template-columns: repeat(4, 1fr); column-gap: 1rem; row-gap: 0.25rem; }
+        .yearly-month-events { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; font-size: 0.65rem; max-height: 140px; overflow-y: auto; margin-bottom: 1rem; }
+        .yearly-month-events .event-item { display: flex; align-items: flex-start; gap: 6px; padding: 4px 6px; cursor: pointer; border-radius: 4px; }
+        .yearly-month-events .event-item:hover { background: #f1f5f9; }
+        .yearly-month-events .event-color { flex-shrink: 0; width: 6px; height: 14px; border-radius: 2px; margin-top: 2px; }
+        .yearly-month-events .event-text { flex: 1; min-width: 0; line-height: 1.3; }
+        .yearly-month-events .event-date { color: #64748b; font-size: 0.6rem; white-space: nowrap; }
+        @media (max-width: 1024px) { .yearly-combined-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 640px) { .yearly-combined-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body class="p-4 md:p-8">
@@ -118,10 +124,10 @@
         </div>
     </div>
 
-    <!-- Yearly Calendar (12 months, 4x3 grid) -->
+    <!-- Yearly Calendar: each row = 4 calendars, next row = 4 event lists -->
     <div id="yearlyView">
-        <div id="yearlyGrid" class="yearly-grid">
-            <!-- JS Renders 12 mini calendars -->
+        <div id="yearlyCombinedGrid" class="yearly-combined-grid">
+            <!-- JS Renders: Jan-Feb-Mar-Apr calendars, then Jan-Feb-Mar-Apr events, then May-Jun-Jul-Aug calendars, etc. -->
         </div>
     </div>
 </div>
@@ -217,11 +223,24 @@ function shouldShowEventOnDay(event, dateStr) {
     return true;
 }
 
-// When holiday overlaps with other events, show only holiday
+// When holiday overlaps with multi-day events: hide multi-day, keep holiday + single-day
 function filterEventsByHolidayPriority(events) {
     const hasHoliday = events.some(e => e.type === 'holiday');
-    if (hasHoliday) return events.filter(e => e.type === 'holiday');
-    return events;
+    if (!hasHoliday) return events;
+    return events.filter(e => e.type === 'holiday' || e.start === e.end);
+}
+
+function getEventsForMonth(year, month, filter) {
+    const monthStart = new Date(year, month, 1);
+    const monthEnd = new Date(year, month + 1, 0);
+    const events = ACADEMIC_EVENTS.filter(event => {
+        const matchesFilter = filter === 'All' || event.year.includes(filter) || event.year === 'All';
+        if (!matchesFilter) return false;
+        const start = new Date(event.start);
+        const end = new Date(event.end);
+        return start <= monthEnd && end >= monthStart;
+    });
+    return events.sort((a, b) => new Date(a.start) - new Date(b.start));
 }
 
 function renderCalendar() {
@@ -299,82 +318,117 @@ function renderMonthly() {
     }
 }
 
+function buildYearlyCalendarBlock(year, m, filter) {
+    const monthBlock = document.createElement('div');
+    monthBlock.className = 'yearly-month';
+    
+    const monthTitle = document.createElement('div');
+    monthTitle.className = 'py-2 px-2 text-center font-bold text-slate-700 text-sm border-b border-slate-200 bg-slate-50';
+    monthTitle.innerText = monthNames[m];
+    monthBlock.appendChild(monthTitle);
+    
+    const monthGrid = document.createElement('div');
+    monthGrid.className = 'yearly-month-grid';
+    
+    ['S','M','T','W','T','F','S'].forEach((d, i) => {
+        const h = document.createElement('div');
+        h.className = 'py-1 text-center text-[0.6rem] font-semibold ' + (i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-slate-400');
+        h.innerText = d;
+        monthGrid.appendChild(h);
+    });
+    
+    const firstDay = new Date(year, m, 1).getDay();
+    const daysInMonth = new Date(year, m + 1, 0).getDate();
+    
+    for (let i = 0; i < firstDay; i++) {
+        const empty = document.createElement('div');
+        empty.className = 'yearly-day-cell bg-slate-50/50';
+        monthGrid.appendChild(empty);
+    }
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        let dayEvents = ACADEMIC_EVENTS.filter(event => {
+            const matchesFilter = filter === 'All' || event.year.includes(filter) || event.year === 'All';
+            return matchesFilter && shouldShowEventOnDay(event, dateStr);
+        });
+        dayEvents = filterEventsByHolidayPriority(dayEvents);
+        
+        const cell = document.createElement('div');
+        cell.className = 'yearly-day-cell';
+        const uniqueTypes = [...new Set(dayEvents.map(e => e.type))].sort((a, b) => (typePriority[b] || 0) - (typePriority[a] || 0));
+        
+        const tooltipText = dayEvents.map(e => e.title).join('\n');
+        if (tooltipText) cell.title = tooltipText;
+        
+        const dayOfWeek = (firstDay + day - 1) % 7;
+        const numSpan = document.createElement('span');
+        numSpan.className = 'day-num ' + (dayOfWeek === 0 ? 'text-red-500' : dayOfWeek === 6 ? 'text-blue-500' : '');
+        numSpan.innerText = day;
+        cell.appendChild(numSpan);
+        
+        if (uniqueTypes.length > 0) {
+            cell.classList.add('has-event');
+            const barsContainer = document.createElement('div');
+            barsContainer.className = 'color-bars';
+            uniqueTypes.forEach(type => {
+                const bar = document.createElement('div');
+                bar.className = `color-bar ${type}`;
+                barsContainer.appendChild(bar);
+            });
+            cell.appendChild(barsContainer);
+            const firstEvent = getDominantEvent(dayEvents);
+            cell.onclick = () => showDetail(firstEvent);
+        }
+        
+        monthGrid.appendChild(cell);
+    }
+    
+    monthBlock.appendChild(monthGrid);
+    return monthBlock;
+}
+
+function buildYearlyEventsBlock(year, m, filter) {
+    const colorMap = { holiday: '#ef4444', exam: '#3b82f6', special: '#f59e0b', default: '#94a3b8' };
+    const monthEvents = getEventsForMonth(year, m, filter);
+    const eventsPanel = document.createElement('div');
+    eventsPanel.className = 'yearly-month-events';
+    monthEvents.forEach(event => {
+        const item = document.createElement('div');
+        item.className = 'event-item';
+        item.onclick = () => showDetail(event);
+        const dateStr = event.start === event.end 
+            ? event.start.replace(/-/g, '.') 
+            : `${event.start.replace(/-/g, '.')} - ${event.end.replace(/-/g, '.')}`;
+        const color = colorMap[event.type] || '#94a3b8';
+        item.innerHTML = `
+            <span class="event-color" style="background:${color}"></span>
+            <div class="event-text">
+                <div class="event-date">${dateStr}</div>
+                <div class="font-semibold text-slate-700">${event.title}</div>
+            </div>
+        `;
+        eventsPanel.appendChild(item);
+    });
+    return eventsPanel;
+}
+
 function renderYearly() {
-    const yearlyGrid = document.getElementById('yearlyGrid');
+    const grid = document.getElementById('yearlyCombinedGrid');
     const filter = document.getElementById('yearFilter').value;
     const year = currentDate.getFullYear();
     
-    yearlyGrid.innerHTML = '';
+    grid.innerHTML = '';
     
-    for (let m = 0; m < 12; m++) {
-        const monthBlock = document.createElement('div');
-        monthBlock.className = 'yearly-month';
-        
-        const monthTitle = document.createElement('div');
-        monthTitle.className = 'py-2 px-2 text-center font-bold text-slate-700 text-sm border-b border-slate-200 bg-slate-50';
-        monthTitle.innerText = monthNames[m];
-        monthBlock.appendChild(monthTitle);
-        
-        const monthGrid = document.createElement('div');
-        monthGrid.className = 'yearly-month-grid';
-        
-        // Day headers (Sun=red, Sat=blue)
-        ['S','M','T','W','T','F','S'].forEach((d, i) => {
-            const h = document.createElement('div');
-            h.className = 'py-1 text-center text-[0.6rem] font-semibold ' + (i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-slate-400');
-            h.innerText = d;
-            monthGrid.appendChild(h);
-        });
-        
-        const firstDay = new Date(year, m, 1).getDay();
-        const daysInMonth = new Date(year, m + 1, 0).getDate();
-        
-        for (let i = 0; i < firstDay; i++) {
-            const empty = document.createElement('div');
-            empty.className = 'yearly-day-cell bg-slate-50/50';
-            monthGrid.appendChild(empty);
+    for (let quarter = 0; quarter < 3; quarter++) {
+        for (let i = 0; i < 4; i++) {
+            const m = quarter * 4 + i;
+            grid.appendChild(buildYearlyCalendarBlock(year, m, filter));
         }
-        
-        for (let day = 1; day <= daysInMonth; day++) {
-            const dateStr = `${year}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            let dayEvents = ACADEMIC_EVENTS.filter(event => {
-                const matchesFilter = filter === 'All' || event.year.includes(filter) || event.year === 'All';
-                return matchesFilter && shouldShowEventOnDay(event, dateStr);
-            });
-            dayEvents = filterEventsByHolidayPriority(dayEvents);
-            
-            const cell = document.createElement('div');
-            cell.className = 'yearly-day-cell';
-            const uniqueTypes = [...new Set(dayEvents.map(e => e.type))].sort((a, b) => (typePriority[b] || 0) - (typePriority[a] || 0));
-            
-            const tooltipText = dayEvents.map(e => e.title).join('\n');
-            if (tooltipText) cell.title = tooltipText;
-            
-            const dayOfWeek = (firstDay + day - 1) % 7;
-            const numSpan = document.createElement('span');
-            numSpan.className = 'day-num ' + (dayOfWeek === 0 ? 'text-red-500' : dayOfWeek === 6 ? 'text-blue-500' : '');
-            numSpan.innerText = day;
-            cell.appendChild(numSpan);
-            
-            if (uniqueTypes.length > 0) {
-                cell.classList.add('has-event');
-                const barsContainer = document.createElement('div');
-                barsContainer.className = 'color-bars';
-                uniqueTypes.forEach(type => {
-                    const bar = document.createElement('div');
-                    bar.className = `color-bar ${type}`;
-                    barsContainer.appendChild(bar);
-                });
-                cell.appendChild(barsContainer);
-                const firstEvent = getDominantEvent(dayEvents);
-                cell.onclick = () => showDetail(firstEvent);
-            }
-            
-            monthGrid.appendChild(cell);
+        for (let i = 0; i < 4; i++) {
+            const m = quarter * 4 + i;
+            grid.appendChild(buildYearlyEventsBlock(year, m, filter));
         }
-        
-        monthBlock.appendChild(monthGrid);
-        yearlyGrid.appendChild(monthBlock);
     }
 }
 
