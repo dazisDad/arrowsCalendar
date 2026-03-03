@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arrows Secondary 2026 Academic Calendar</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); table-layout: fixed; width: 100%; }
+        .day-cell { min-height: 120px; transition: all 0.2s; border: 1px solid #e2e8f0; overflow: hidden; }
+        
+        /* 일정 태그 스타일 수정: 줄바꿈 허용 및 폭 제한 */
+        .event-tag { 
+            font-size: 0.7rem; 
+            padding: 2px 6px; 
+            border-radius: 4px; 
+            margin-bottom: 3px; 
+            cursor: pointer; 
+            line-height: 1.2;
+            word-break: keep-all; /* 단어 단위 줄바꿈 */
+            display: -webkit-box;
+            -webkit-line-clamp: 2; /* 최대 2줄 표시 */
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* 기간 중 첫날이 아닌 날의 배경 스타일 */
+        .event-duration-bg {
+            height: 4px;
+            margin-bottom: 2px;
+            border-radius: 2px;
+            opacity: 0.3;
+        }
+
+        .event-holiday { background-color: #fee2e2; color: #991b1b; border-left: 3px solid #ef4444; }
+        .event-exam { background-color: #dbeafe; color: #1e40af; border-left: 3px solid #3b82f6; }
+        .event-default { background-color: #f1f5f9; color: #334155; border-left: 3px solid #94a3b8; }
+        .event-special { background-color: #fef3c7; color: #92400e; border-left: 3px solid #f59e0b; }
+        
+        /* 기간 표시용 배경색 */
+        .bg-holiday-dim { background-color: #ef4444; }
+        .bg-exam-dim { background-color: #3b82f6; }
+        .bg-special-dim { background-color: #f59e0b; }
+        .bg-default-dim { background-color: #94a3b8; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+<div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <div>
+            <h1 class="text-3xl font-bold text-slate-800">Arrows Academic Calendar 2026</h1>
+            <p class="text-slate-500 font-medium">Secondary School Schedule (Updated)</p>
+        </div>
+        
+        <div class="flex items-center gap-4">
+            <select id="yearFilter" class="bg-white border border-slate-300 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                <option value="All">모든 학년</option>
+                <option value="Year 7">Year 7</option>
+                <option value="Year 8">Year 8</option>
+                <option value="Year 9">Year 9</option>
+                <option value="Year 10">Year 10</option>
+                <option value="Year 11">Year 11</option>
+            </select>
+            <div class="flex border rounded-lg overflow-hidden bg-white shadow-sm">
+                <button onclick="changeMonth(-1)" class="px-4 py-2 hover:bg-slate-50 border-r transition">&lt;</button>
+                <div id="currentMonthDisplay" class="px-6 py-2 font-bold min-w-[140px] text-center text-slate-700">2026년 1월</div>
+                <button onclick="changeMonth(1)" class="px-4 py-2 hover:bg-slate-50 border-l transition">&gt;</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="flex flex-wrap gap-6 mb-6 text-xs font-semibold uppercase tracking-wider text-slate-500">
+        <div class="flex items-center gap-2"><span class="w-3 h-3 bg-red-500 rounded"></span> 공휴일/방학</div>
+        <div class="flex items-center gap-2"><span class="w-3 h-3 bg-blue-500 rounded"></span> 시험/평가</div>
+        <div class="flex items-center gap-2"><span class="w-3 h-3 bg-amber-500 rounded"></span> 행사/캠프</div>
+        <div class="flex items-center gap-2"><span class="w-3 h-3 bg-slate-400 rounded"></span> 일반 일정</div>
+    </div>
+
+    <!-- Calendar Container -->
+    <div class="bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-200">
+        <div class="calendar-grid bg-slate-50 border-b border-slate-200">
+            <div class="py-4 text-center font-bold text-red-500 text-xs">SUN</div>
+            <div class="py-4 text-center font-bold text-slate-500 text-xs">MON</div>
+            <div class="py-4 text-center font-bold text-slate-500 text-xs">TUE</div>
+            <div class="py-4 text-center font-bold text-slate-500 text-xs">WED</div>
+            <div class="py-4 text-center font-bold text-slate-500 text-xs">THU</div>
+            <div class="py-4 text-center font-bold text-slate-500 text-xs">FRI</div>
+            <div class="py-4 text-center font-bold text-slate-500 text-xs">SAT</div>
+        </div>
+        <div id="calendarDays" class="calendar-grid">
+            <!-- JS Renders Here -->
+        </div>
+    </div>
+</div>
+
+<!-- Modal -->
+<div id="eventModal" class="fixed inset-0 bg-slate-900/60 hidden items-center justify-center p-4 z-50 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-8 shadow-2xl border border-slate-100">
+        <h3 id="modalTitle" class="text-2xl font-bold text-slate-800 mb-2"></h3>
+        <div id="modalDate" class="inline-block bg-blue-50 text-blue-700 text-sm font-bold px-3 py-1 rounded-full mb-6"></div>
+        <div id="modalDesc" class="text-slate-600 mb-8 space-y-3"></div>
+        <button onclick="closeModal()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold hover:bg-slate-700 transition shadow-lg shadow-slate-200">확인</button>
+    </div>
+</div>
+
+<script>
+const ACADEMIC_EVENTS = [
+    // 1월
+    { title: "School Starts", start: "2026-01-05", end: "2026-01-05", year: "All", type: "default" },
+    { title: "IGCSE Trial Speaking (Malay)", start: "2026-01-05", end: "2026-02-27", year: "Year 11", type: "exam" },
+    { title: "IGCSE Trial Speaking (Mandarin/Chinese)", start: "2026-01-05", end: "2026-02-27", year: "Year 10-11", type: "exam" },
+    
+    // 2월
+    { title: "Thaipusam Holiday", start: "2026-02-02", end: "2026-02-02", year: "All", type: "holiday" },
+    { title: "Fire Drill Week", start: "2026-02-09", end: "2026-02-13", year: "All", type: "default" },
+    { title: "Chinese New Year Holiday", start: "2026-02-16", end: "2026-02-20", year: "All", type: "holiday" },
+    { title: "Entreprise Event (Y11)", start: "2026-02-24", end: "2026-02-25", year: "Year 11", type: "special" },
+
+    // 3월
+    { title: "IGCSE Speaking (Malay/Mandarin/Chinese)", start: "2026-03-01", end: "2026-04-30", year: "Year 10-11", type: "exam" },
+    { title: "Topical Test 1", start: "2026-03-02", end: "2026-03-10", year: "All", type: "exam" },
+    { title: "Senior Camp", start: "2026-03-11", end: "2026-03-13", year: "Year 10-11", type: "special" },
+    { title: "First Semester Break", start: "2026-03-16", end: "2026-03-20", year: "All", type: "holiday" },
+    { title: "Hari Raya Holiday", start: "2026-03-23", end: "2026-03-25", year: "All", type: "holiday" },
+    { title: "IGCSE Trial Written (Malay)", start: "2026-03-30", end: "2026-04-03", year: "Year 11", type: "exam" },
+
+    // 4월
+    { title: "Junior Camp", start: "2026-04-01", end: "2026-04-03", year: "Year 7-9", type: "special" },
+    { title: "Semester 1 Exam Period", start: "2026-04-20", end: "2026-05-08", year: "All", type: "exam" },
+    { title: "Labour Day Holiday", start: "2026-05-01", end: "2026-05-01", year: "All", type: "holiday" },
+
+    // 6월
+    { title: "Mid-Year Break", start: "2026-06-01", end: "2026-06-12", year: "All", type: "holiday" },
+    { title: "Parent-Teacher Meeting 1", start: "2026-06-16", end: "2026-06-16", year: "All", type: "special" },
+    { title: "Awal Muharram Holiday", start: "2026-06-17", end: "2026-06-17", year: "All", type: "holiday" },
+
+    // 7월
+    { title: "Sports Day", start: "2026-07-04", end: "2026-07-04", year: "All", type: "special" },
+    { title: "Sports Day Replacement Holiday", start: "2026-07-06", end: "2026-07-06", year: "All", type: "holiday" },
+    { title: "Topical Test 2", start: "2026-07-13", end: "2026-07-24", year: "Year 7-10", type: "exam" },
+    { title: "IGCSE Trial Exam", start: "2026-07-20", end: "2026-08-07", year: "Year 11", type: "exam" },
+
+    // 8월
+    { title: "Checkpoint Trial Exam", start: "2026-08-10", end: "2026-08-21", year: "Year 9", type: "exam" },
+    { title: "Arrows Charity Event", start: "2026-08-22", end: "2026-08-22", year: "All", type: "special" },
+    { title: "Charity Replacement Holiday", start: "2026-08-24", end: "2026-08-24", year: "All", type: "holiday" },
+    { title: "Prophet Muhammad's Birthday", start: "2026-08-25", end: "2026-08-25", year: "All", type: "holiday" },
+    { title: "Merdeka Holiday", start: "2026-08-31", end: "2026-08-31", year: "All", type: "holiday" },
+
+    // 9월
+    { title: "Second Semester Break", start: "2026-09-07", end: "2026-09-11", year: "All", type: "holiday" },
+    { title: "Malaysia Day Holiday", start: "2026-09-16", end: "2026-09-16", year: "All", type: "holiday" },
+
+    // 10월
+    { title: "Semester 2 Exam Period", start: "2026-10-05", end: "2026-10-28", year: "Year 7-10", type: "exam" },
+    { title: "IGCSE Final Exam Period", start: "2026-10-05", end: "2026-11-13", year: "Year 11", type: "exam" },
+    { title: "Checkpoint Final Exams", start: "2026-10-14", end: "2026-10-21", year: "Year 9", type: "exam" },
+
+    // 11월
+    { title: "Field Trip Week", start: "2026-11-02", end: "2026-11-06", year: "Year 7-10", type: "special" },
+    { title: "Deepavali Holiday", start: "2026-11-09", end: "2026-11-11", year: "All", type: "holiday" },
+    { title: "Graduation Night", start: "2026-12-04", end: "2026-12-04", year: "Year 11", type: "special" },
+    { title: "Year-End Break", start: "2026-11-30", end: "2026-12-31", year: "All", type: "holiday" }
+];
+
+let currentDate = new Date(2026, 0, 1);
+
+function renderCalendar() {
+    const calendarDays = document.getElementById('calendarDays');
+    const monthDisplay = document.getElementById('currentMonthDisplay');
+    const filter = document.getElementById('yearFilter').value;
+    
+    calendarDays.innerHTML = '';
+    
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    monthDisplay.innerText = `${year}년 ${month + 1}월`;
+    
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    // Padding for previous month
+    for (let i = 0; i < firstDay; i++) {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'day-cell bg-slate-50/50';
+        calendarDays.appendChild(emptyDiv);
+    }
+    
+    // Days
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dayDiv = document.createElement('div');
+        dayDiv.className = 'day-cell p-2 flex flex-col hover:bg-slate-50 transition cursor-default';
+        
+        const dateSpan = document.createElement('span');
+        dateSpan.innerText = day;
+        dateSpan.className = 'text-sm font-bold text-slate-400 mb-2';
+        dayDiv.appendChild(dateSpan);
+        
+        // Filter events for this specific day
+        const dayEvents = ACADEMIC_EVENTS.filter(event => {
+            const start = new Date(event.start);
+            const end = new Date(event.end);
+            const current = new Date(dateStr);
+            const matchesFilter = filter === 'All' || event.year.includes(filter) || event.year === 'All';
+            return current >= start && current <= end && matchesFilter;
+        });
+        
+        dayEvents.forEach(event => {
+            const isFirstDay = event.start === dateStr;
+            const eventDiv = document.createElement('div');
+            
+            if (isFirstDay) {
+                // 첫 날인 경우: 제목과 종료일 표시
+                const endDateObj = new Date(event.end);
+                const isOneDay = event.start === event.end;
+                const endText = isOneDay ? "" : ` (~${endDateObj.getMonth() + 1}/${endDateObj.getDate()})`;
+                
+                eventDiv.className = `event-tag event-${event.type}`;
+                eventDiv.innerText = `${event.title}${endText}`;
+                eventDiv.onclick = (e) => showDetail(event);
+            } else {
+                // 진행 중인 날인 경우: 얇은 바 형태로만 표시
+                eventDiv.className = `event-duration-bg bg-${event.type}-dim`;
+                eventDiv.title = event.title; // 툴팁 표시
+                eventDiv.onclick = (e) => showDetail(event);
+            }
+            
+            dayDiv.appendChild(eventDiv);
+        });
+        
+        calendarDays.appendChild(dayDiv);
+    }
+}
+
+function changeMonth(offset) {
+    currentDate.setMonth(currentDate.getMonth() + offset);
+    renderCalendar();
+}
+
+function showDetail(event) {
+    document.getElementById('modalTitle').innerText = event.title;
+    const startStr = event.start.replace(/-/g, '.');
+    const endStr = event.end.replace(/-/g, '.');
+    document.getElementById('modalDate').innerText = startStr === endStr ? startStr : `${startStr} - ${endStr}`;
+    
+    document.getElementById('modalDesc').innerHTML = `
+        <div class="flex justify-between items-center py-2 border-b border-slate-100">
+            <span class="text-slate-400 font-semibold text-sm">대상 학년</span>
+            <span class="text-slate-800 font-bold">${event.year}</span>
+        </div>
+        <div class="flex justify-between items-center py-2 border-b border-slate-100">
+            <span class="text-slate-400 font-semibold text-sm">유형</span>
+            <span class="text-slate-800 font-bold capitalize">${event.type}</span>
+        </div>
+    `;
+    document.getElementById('eventModal').classList.remove('hidden');
+    document.getElementById('eventModal').classList.add('flex');
+}
+
+function closeModal() {
+    document.getElementById('eventModal').classList.add('hidden');
+    document.getElementById('eventModal').classList.remove('flex');
+}
+
+document.getElementById('yearFilter').addEventListener('change', renderCalendar);
+window.onload = renderCalendar;
+</script>
+</body>
+</html>
