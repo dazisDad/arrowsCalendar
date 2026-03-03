@@ -44,6 +44,23 @@
         .bg-exam-dim { background-color: #3b82f6; }
         .bg-special-dim { background-color: #f59e0b; }
         .bg-default-dim { background-color: #94a3b8; }
+
+        /* Yearly view: 4 months per row, 3 rows */
+        .yearly-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+        .yearly-month { background: white; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+        .yearly-month-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+        .yearly-day-cell { min-height: 28px; font-size: 0.65rem; padding: 2px; border: 1px solid #f1f5f9; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; cursor: default; }
+        .yearly-day-cell.has-event { cursor: pointer; }
+        .yearly-day-cell .day-num { font-weight: 600; color: #64748b; }
+        .yearly-day-cell.has-event { position: relative; }
+        .yearly-day-cell .color-bars { position: absolute; bottom: 0; left: 0; right: 0; display: flex; flex-direction: column-reverse; gap: 1px; align-items: stretch; }
+        .yearly-day-cell .color-bar { height: 2px; border-radius: 1px; flex: 1; min-height: 2px; }
+        .yearly-day-cell .color-bar.holiday { background: #ef4444; }
+        .yearly-day-cell .color-bar.exam { background: #3b82f6; }
+        .yearly-day-cell .color-bar.special { background: #f59e0b; }
+        .yearly-day-cell .color-bar.default { background: #94a3b8; }
+        @media (max-width: 1024px) { .yearly-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 640px) { .yearly-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body class="p-4 md:p-8">
@@ -56,7 +73,7 @@
             <p class="text-slate-500 font-medium">Secondary School Schedule (Updated)</p>
         </div>
         
-        <div class="flex items-center gap-4">
+        <div class="flex flex-wrap items-center gap-4">
             <select id="yearFilter" class="bg-white border border-slate-300 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
                 <option value="All">All Years</option>
                 <option value="Year 7">Year 7</option>
@@ -65,7 +82,11 @@
                 <option value="Year 10">Year 10</option>
                 <option value="Year 11">Year 11</option>
             </select>
-            <div class="flex border rounded-lg overflow-hidden bg-white shadow-sm">
+            <select id="viewMode" class="bg-white border border-slate-300 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                <option value="monthly">Monthly</option>
+                <option value="yearly" selected>Yearly</option>
+            </select>
+            <div id="monthNav" class="flex border rounded-lg overflow-hidden bg-white shadow-sm">
                 <button onclick="changeMonth(-1)" class="px-4 py-2 hover:bg-slate-50 border-r transition">&lt;</button>
                 <div id="currentMonthDisplay" class="px-6 py-2 font-bold min-w-[140px] text-center text-slate-700">January 2026</div>
                 <button onclick="changeMonth(1)" class="px-4 py-2 hover:bg-slate-50 border-l transition">&gt;</button>
@@ -81,8 +102,8 @@
         <div class="flex items-center gap-2"><span class="w-3 h-3 bg-slate-400 rounded"></span> General Schedule</div>
     </div>
 
-    <!-- Calendar Container -->
-    <div class="bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-200">
+    <!-- Monthly Calendar -->
+    <div id="monthlyView" class="hidden bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-200">
         <div class="calendar-grid bg-slate-50 border-b border-slate-200">
             <div class="py-4 text-center font-bold text-red-500 text-xs">SUN</div>
             <div class="py-4 text-center font-bold text-slate-500 text-xs">MON</div>
@@ -90,10 +111,17 @@
             <div class="py-4 text-center font-bold text-slate-500 text-xs">WED</div>
             <div class="py-4 text-center font-bold text-slate-500 text-xs">THU</div>
             <div class="py-4 text-center font-bold text-slate-500 text-xs">FRI</div>
-            <div class="py-4 text-center font-bold text-slate-500 text-xs">SAT</div>
+            <div class="py-4 text-center font-bold text-blue-500 text-xs">SAT</div>
         </div>
         <div id="calendarDays" class="calendar-grid">
             <!-- JS Renders Here -->
+        </div>
+    </div>
+
+    <!-- Yearly Calendar (12 months, 4x3 grid) -->
+    <div id="yearlyView">
+        <div id="yearlyGrid" class="yearly-grid">
+            <!-- JS Renders 12 mini calendars -->
         </div>
     </div>
 </div>
@@ -169,8 +197,47 @@ const ACADEMIC_EVENTS = [
 ];
 
 let currentDate = new Date(2026, 0, 1);
+const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const typePriority = { holiday: 4, exam: 3, special: 2, default: 1 };
+
+function getDominantEvent(events) {
+    if (!events.length) return null;
+    return [...events].sort((a, b) => (typePriority[b.type] || 0) - (typePriority[a.type] || 0))[0];
+}
+
+// Multi-day events: hide on Sat/Sun. Single-day events: always show (even on weekend).
+function shouldShowEventOnDay(event, dateStr) {
+    const start = new Date(event.start);
+    const end = new Date(event.end);
+    const current = new Date(dateStr);
+    if (current < start || current > end) return false;
+    if (event.start === event.end) return true; // Single-day: show on any day including weekend
+    const dayOfWeek = current.getDay();
+    if (dayOfWeek === 0 || dayOfWeek === 6) return false; // Multi-day: hide on Sat/Sun
+    return true;
+}
+
+// When holiday overlaps with other events, show only holiday
+function filterEventsByHolidayPriority(events) {
+    const hasHoliday = events.some(e => e.type === 'holiday');
+    if (hasHoliday) return events.filter(e => e.type === 'holiday');
+    return events;
+}
 
 function renderCalendar() {
+    const viewMode = document.getElementById('viewMode').value;
+    document.getElementById('monthlyView').classList.toggle('hidden', viewMode === 'yearly');
+    document.getElementById('yearlyView').classList.toggle('hidden', viewMode === 'monthly');
+    document.getElementById('monthNav').classList.toggle('hidden', viewMode === 'yearly');
+
+    if (viewMode === 'monthly') {
+        renderMonthly();
+    } else {
+        renderYearly();
+    }
+}
+
+function renderMonthly() {
     const calendarDays = document.getElementById('calendarDays');
     const monthDisplay = document.getElementById('currentMonthDisplay');
     const filter = document.getElementById('yearFilter').value;
@@ -179,20 +246,17 @@ function renderCalendar() {
     
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
-    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     monthDisplay.innerText = `${monthNames[month]} ${year}`;
     
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     
-    // Padding for previous month
     for (let i = 0; i < firstDay; i++) {
         const emptyDiv = document.createElement('div');
         emptyDiv.className = 'day-cell bg-slate-50/50';
         calendarDays.appendChild(emptyDiv);
     }
     
-    // Days
     for (let day = 1; day <= daysInMonth; day++) {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const dayDiv = document.createElement('div');
@@ -200,42 +264,117 @@ function renderCalendar() {
         
         const dateSpan = document.createElement('span');
         dateSpan.innerText = day;
-        dateSpan.className = 'text-sm font-bold text-slate-400 mb-2';
+        const dayOfWeek = (firstDay + day - 1) % 7;
+        dateSpan.className = 'text-sm font-bold mb-2 ' + (dayOfWeek === 0 ? 'text-red-500' : dayOfWeek === 6 ? 'text-blue-500' : 'text-slate-400');
         dayDiv.appendChild(dateSpan);
         
-        // Filter events for this specific day
-        const dayEvents = ACADEMIC_EVENTS.filter(event => {
-            const start = new Date(event.start);
-            const end = new Date(event.end);
-            const current = new Date(dateStr);
+        let dayEvents = ACADEMIC_EVENTS.filter(event => {
             const matchesFilter = filter === 'All' || event.year.includes(filter) || event.year === 'All';
-            return current >= start && current <= end && matchesFilter;
+            return matchesFilter && shouldShowEventOnDay(event, dateStr);
         });
+        dayEvents = filterEventsByHolidayPriority(dayEvents);
         
         dayEvents.forEach(event => {
             const isFirstDay = event.start === dateStr;
             const eventDiv = document.createElement('div');
             
             if (isFirstDay) {
-                // 첫 날인 경우: 제목과 종료일 표시
                 const endDateObj = new Date(event.end);
                 const isOneDay = event.start === event.end;
                 const endText = isOneDay ? "" : ` (~${endDateObj.getMonth() + 1}/${endDateObj.getDate()})`;
                 
                 eventDiv.className = `event-tag event-${event.type}`;
                 eventDiv.innerText = `${event.title}${endText}`;
-                eventDiv.onclick = (e) => showDetail(event);
+                eventDiv.onclick = () => showDetail(event);
             } else {
-                // 진행 중인 날인 경우: 얇은 바 형태로만 표시
                 eventDiv.className = `event-duration-bg bg-${event.type}-dim`;
-                eventDiv.title = event.title; // 툴팁 표시
-                eventDiv.onclick = (e) => showDetail(event);
+                eventDiv.title = event.title;
+                eventDiv.onclick = () => showDetail(event);
             }
             
             dayDiv.appendChild(eventDiv);
         });
         
         calendarDays.appendChild(dayDiv);
+    }
+}
+
+function renderYearly() {
+    const yearlyGrid = document.getElementById('yearlyGrid');
+    const filter = document.getElementById('yearFilter').value;
+    const year = currentDate.getFullYear();
+    
+    yearlyGrid.innerHTML = '';
+    
+    for (let m = 0; m < 12; m++) {
+        const monthBlock = document.createElement('div');
+        monthBlock.className = 'yearly-month';
+        
+        const monthTitle = document.createElement('div');
+        monthTitle.className = 'py-2 px-2 text-center font-bold text-slate-700 text-sm border-b border-slate-200 bg-slate-50';
+        monthTitle.innerText = monthNames[m];
+        monthBlock.appendChild(monthTitle);
+        
+        const monthGrid = document.createElement('div');
+        monthGrid.className = 'yearly-month-grid';
+        
+        // Day headers (Sun=red, Sat=blue)
+        ['S','M','T','W','T','F','S'].forEach((d, i) => {
+            const h = document.createElement('div');
+            h.className = 'py-1 text-center text-[0.6rem] font-semibold ' + (i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-slate-400');
+            h.innerText = d;
+            monthGrid.appendChild(h);
+        });
+        
+        const firstDay = new Date(year, m, 1).getDay();
+        const daysInMonth = new Date(year, m + 1, 0).getDate();
+        
+        for (let i = 0; i < firstDay; i++) {
+            const empty = document.createElement('div');
+            empty.className = 'yearly-day-cell bg-slate-50/50';
+            monthGrid.appendChild(empty);
+        }
+        
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${year}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            let dayEvents = ACADEMIC_EVENTS.filter(event => {
+                const matchesFilter = filter === 'All' || event.year.includes(filter) || event.year === 'All';
+                return matchesFilter && shouldShowEventOnDay(event, dateStr);
+            });
+            dayEvents = filterEventsByHolidayPriority(dayEvents);
+            
+            const cell = document.createElement('div');
+            cell.className = 'yearly-day-cell';
+            const uniqueTypes = [...new Set(dayEvents.map(e => e.type))].sort((a, b) => (typePriority[b] || 0) - (typePriority[a] || 0));
+            
+            const tooltipText = dayEvents.map(e => e.title).join('\n');
+            if (tooltipText) cell.title = tooltipText;
+            
+            const dayOfWeek = (firstDay + day - 1) % 7;
+            const numSpan = document.createElement('span');
+            numSpan.className = 'day-num ' + (dayOfWeek === 0 ? 'text-red-500' : dayOfWeek === 6 ? 'text-blue-500' : '');
+            numSpan.innerText = day;
+            cell.appendChild(numSpan);
+            
+            if (uniqueTypes.length > 0) {
+                cell.classList.add('has-event');
+                const barsContainer = document.createElement('div');
+                barsContainer.className = 'color-bars';
+                uniqueTypes.forEach(type => {
+                    const bar = document.createElement('div');
+                    bar.className = `color-bar ${type}`;
+                    barsContainer.appendChild(bar);
+                });
+                cell.appendChild(barsContainer);
+                const firstEvent = getDominantEvent(dayEvents);
+                cell.onclick = () => showDetail(firstEvent);
+            }
+            
+            monthGrid.appendChild(cell);
+        }
+        
+        monthBlock.appendChild(monthGrid);
+        yearlyGrid.appendChild(monthBlock);
     }
 }
 
@@ -269,6 +408,7 @@ function closeModal() {
     document.getElementById('eventModal').classList.remove('flex');
 }
 
+document.getElementById('viewMode').addEventListener('change', renderCalendar);
 document.getElementById('yearFilter').addEventListener('change', renderCalendar);
 window.onload = renderCalendar;
 </script>
