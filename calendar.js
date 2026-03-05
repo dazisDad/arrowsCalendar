@@ -110,15 +110,14 @@ function getFirstVisibleDayInMonth(event, year, month, filter) {
 }
 
 function getEventsForMonth(year, month, filter) {
-    const monthStart = new Date(year, month, 1);
-    const monthEnd = new Date(year, month + 1, 0);
+    const monthStartStr = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    const monthEndStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
     const events = getAcademicEvents().filter(event => {
         if (!eventMatchesYearFilter(event, filter)) return false;
-        const start = new Date(event.start);
-        const end = new Date(event.end);
-        return start <= monthEnd && end >= monthStart;
+        return event.start <= monthEndStr && event.end >= monthStartStr;
     });
-    return events.sort((a, b) => new Date(a.start) - new Date(b.start));
+    return events.sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0));
 }
 
 function renderCalendar() {
