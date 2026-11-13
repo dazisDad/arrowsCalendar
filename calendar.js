@@ -1,7 +1,35 @@
-document.title = `${SCHOOL} ${ACADEMIC_YEAR} Academic Calendar`;
-document.getElementById('calendarTitle').textContent = `${SCHOOL} Academic Calendar ${ACADEMIC_YEAR}`;
+// 사용 가능한 학년도 (최신순). 기본값은 ?year=YYYY 파라미터, 없으면 최신 연도
+const AVAILABLE_YEARS = Object.keys(ACADEMIC_CALENDARS).map(Number).sort((a, b) => b - a);
 
-let currentDate = new Date(ACADEMIC_YEAR, 0, 1);
+function getInitialYear() {
+    const y = Number(new URLSearchParams(window.location.search).get('year'));
+    return AVAILABLE_YEARS.includes(y) ? y : AVAILABLE_YEARS[0];
+}
+
+let academicYear = getInitialYear();
+let currentDate = new Date(academicYear, 0, 1);
+
+function updateTitle() {
+    document.title = `${SCHOOL} ${academicYear} Academic Calendar`;
+    document.getElementById('calendarTitle').textContent = `${SCHOOL} Academic Calendar ${academicYear}`;
+}
+
+function initAcademicYearSelect() {
+    const sel = document.getElementById('academicYear');
+    sel.innerHTML = AVAILABLE_YEARS.map(y => `<option value="${y}">${y}</option>`).join('');
+    sel.value = String(academicYear);
+}
+
+function changeAcademicYear(year) {
+    academicYear = year;
+    currentDate = new Date(year, currentDate.getMonth(), 1);
+    const url = new URL(window.location.href);
+    if (year === AVAILABLE_YEARS[0]) url.searchParams.delete('year');
+    else url.searchParams.set('year', year);
+    history.replaceState(null, '', url);
+    updateTitle();
+    renderCalendar();
+}
 const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const typePriority = { holiday: 4, exam: 3, special: 2, default: 1 };
 
@@ -34,7 +62,9 @@ const YEAR_OPTIONS_SECONDARY = [
 ];
 
 function getAcademicEvents() {
-    return document.getElementById('schoolLevel').value === 'primary' ? ACADEMIC_EVENTS_PRIMARY : ACADEMIC_EVENTS_SECONDARY;
+    const calendar = ACADEMIC_CALENDARS[academicYear] || {};
+    const level = document.getElementById('schoolLevel').value === 'primary' ? 'primary' : 'secondary';
+    return calendar[level] || [];
 }
 
 function formatDateForDisplay(dateStr) {
@@ -296,7 +326,7 @@ function buildYearlyEventsBlock(year, m, filter) {
 function renderYearly() {
     const grid = document.getElementById('yearlyCombinedGrid');
     const filter = document.getElementById('yearFilter').value;
-    const year = currentDate.getFullYear();
+    const year = academicYear;
 
     grid.innerHTML = '';
 
@@ -346,9 +376,12 @@ document.getElementById('schoolLevel').addEventListener('change', () => {
     updateYearFilterOptions();
     renderCalendar();
 });
+document.getElementById('academicYear').addEventListener('change', e => changeAcademicYear(Number(e.target.value)));
 document.getElementById('viewMode').addEventListener('change', renderCalendar);
 document.getElementById('yearFilter').addEventListener('change', renderCalendar);
 window.onload = () => {
+    updateTitle();
+    initAcademicYearSelect();
     updateYearFilterOptions();
     renderCalendar();
 };

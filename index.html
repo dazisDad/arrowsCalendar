@@ -100,6 +100,9 @@
         </div>
         
         <div class="flex flex-wrap items-center gap-4">
+            <select id="academicYear" class="bg-white border border-slate-300 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm font-semibold">
+                <!-- JS fills available years -->
+            </select>
             <select id="schoolLevel" class="bg-white border border-slate-300 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500 text-sm">
                 <option value="primary">Primary</option>
                 <option value="secondary" selected>Secondary</option>
@@ -118,7 +121,7 @@
             </select>
             <div id="monthNav" class="flex border rounded-lg overflow-hidden bg-white shadow-sm">
                 <button onclick="changeMonth(-1)" class="px-4 py-2 hover:bg-slate-50 border-r transition">&lt;</button>
-                <div id="currentMonthDisplay" class="px-6 py-2 font-bold min-w-[140px] text-center text-slate-700">January 2026</div>
+                <div id="currentMonthDisplay" class="px-6 py-2 font-bold min-w-[140px] text-center text-slate-700"></div>
                 <button onclick="changeMonth(1)" class="px-4 py-2 hover:bg-slate-50 border-l transition">&gt;</button>
             </div>
         </div>
@@ -190,7 +193,10 @@
     </div>
 </div>
 
-<script src="academic_events.js"></script>
+<!-- 새 학년도 추가 시 academic_events_YYYY.js 를 만들고 아래에 한 줄 추가 -->
+<script src="config.js"></script>
+<script src="academic_events_2026.js"></script>
+<script src="academic_events_2027.js"></script>
 <script src="calendar.js"></script>
 </body>
 </html>
