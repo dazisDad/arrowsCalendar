@@ -21,14 +21,20 @@ function initAcademicYearSelect() {
 }
 
 function changeAcademicYear(year) {
-    academicYear = year;
     currentDate = new Date(year, currentDate.getMonth(), 1);
+    setAcademicYear(year);
+    renderCalendar();
+}
+
+// 학년도 상태 변경 (드롭다운 / URL / 제목 동기화)
+function setAcademicYear(year) {
+    academicYear = year;
+    document.getElementById('academicYear').value = String(year);
     const url = new URL(window.location.href);
     if (year === AVAILABLE_YEARS[0]) url.searchParams.delete('year');
     else url.searchParams.set('year', year);
     history.replaceState(null, '', url);
     updateTitle();
-    renderCalendar();
 }
 const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const typePriority = { holiday: 4, exam: 3, special: 2, default: 1 };
@@ -67,6 +73,13 @@ function getAcademicEvents() {
     return calendar[level] || [];
 }
 
+const TYPE_COLORS = { holiday: '#ef4444', exam: '#3b82f6', special: '#f59e0b', default: '#94a3b8' };
+const TYPE_LABELS = { holiday: 'Holiday/Break', exam: 'Exam/Assessment', special: 'Event/Camp', default: 'General' };
+
+function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 function formatDateForDisplay(dateStr) {
     const [y, m, d] = dateStr.split('-');
     return `${d}-${m}-${y}`;
@@ -76,11 +89,6 @@ function updateYearFilterOptions() {
     const sel = document.getElementById('yearFilter');
     const opts = document.getElementById('schoolLevel').value === 'primary' ? YEAR_OPTIONS_PRIMARY : YEAR_OPTIONS_SECONDARY;
     sel.innerHTML = opts.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
-}
-
-function getDominantEvent(events) {
-    if (!events.length) return null;
-    return [...events].sort((a, b) => (typePriority[b.type] || 0) - (typePriority[a.type] || 0))[0];
 }
 
 /** event.year가 "Year 10-11" 같은 범위인 경우, filter "Year 10" / "Year 11" 둘 다 매칭 */
@@ -100,13 +108,11 @@ function eventMatchesYearFilter(event, filter) {
 }
 
 // Multi-day events: hide on Sat/Sun. Single-day events: always show (even on weekend).
+// 날짜는 'YYYY-MM-DD' 문자열로 비교하고, 요일은 UTC 기준으로 계산 (보는 사람의 시간대와 무관)
 function shouldShowEventOnDay(event, dateStr) {
-    const start = new Date(event.start);
-    const end = new Date(event.end);
-    const current = new Date(dateStr);
-    if (current < start || current > end) return false;
+    if (dateStr < event.start || dateStr > event.end) return false;
     if (event.start === event.end) return true; // Single-day: show on any day including weekend
-    const dayOfWeek = current.getDay();
+    const dayOfWeek = new Date(dateStr + 'T00:00:00Z').getUTCDay();
     if (dayOfWeek === 0 || dayOfWeek === 6) return false; // Multi-day: hide on Sat/Sun
     return true;
 }
@@ -283,8 +289,8 @@ function buildYearlyCalendarBlock(year, m, filter) {
                 barsContainer.appendChild(bar);
             });
             cell.appendChild(barsContainer);
-            const firstEvent = getDominantEvent(dayEvents);
-            cell.onclick = () => showDetail(firstEvent);
+            const sortedEvents = [...dayEvents].sort((a, b) => (typePriority[b.type] || 0) - (typePriority[a.type] || 0));
+            cell.onclick = () => showDayEvents(dateStr, sortedEvents);
         }
 
         monthGrid.appendChild(cell);
@@ -295,7 +301,6 @@ function buildYearlyCalendarBlock(year, m, filter) {
 }
 
 function buildYearlyEventsBlock(year, m, filter) {
-    const colorMap = { holiday: '#ef4444', exam: '#3b82f6', special: '#f59e0b', default: '#94a3b8' };
     const monthEvents = getEventsForMonth(year, m, filter).filter(eventMatchesTypeFilter);
     const eventsPanel = document.createElement('div');
     eventsPanel.className = 'yearly-month-events';
@@ -310,12 +315,12 @@ function buildYearlyEventsBlock(year, m, filter) {
         const dateStr = event.start === event.end
             ? formatDateForDisplay(event.start)
             : `${formatDateForDisplay(event.start)} - ${formatDateForDisplay(event.end)}`;
-        const color = colorMap[event.type] || '#94a3b8';
+        const color = TYPE_COLORS[event.type] || TYPE_COLORS.default;
         item.innerHTML = `
             <span class="event-color" style="background:${color}"></span>
             <div class="event-text">
                 <div class="event-date">${dateStr}</div>
-                <div class="font-semibold text-slate-700">${event.title}</div>
+                <div class="font-semibold text-slate-700">${escapeHtml(event.title)}</div>
             </div>
         `;
         eventsPanel.appendChild(item);
@@ -344,6 +349,9 @@ function renderYearly() {
 
 function changeMonth(offset) {
     currentDate.setMonth(currentDate.getMonth() + offset);
+    // 월간 보기에서 연도를 넘어가면, 해당 연도 데이터가 있을 경우 학년도도 따라감
+    const y = currentDate.getFullYear();
+    if (y !== academicYear && ACADEMIC_CALENDARS[y]) setAcademicYear(y);
     renderCalendar();
 }
 
@@ -356,13 +364,43 @@ function showDetail(event) {
     document.getElementById('modalDesc').innerHTML = `
         <div class="flex justify-between items-center py-2 border-b border-slate-100">
             <span class="text-slate-400 font-semibold text-sm">Target Year(s)</span>
-            <span class="text-slate-800 font-bold">${event.year}</span>
+            <span class="text-slate-800 font-bold">${escapeHtml(event.year)}</span>
         </div>
         <div class="flex justify-between items-center py-2 border-b border-slate-100">
             <span class="text-slate-400 font-semibold text-sm">Type</span>
             <span class="text-slate-800 font-bold capitalize">${event.type}</span>
         </div>
     `;
+    openModal();
+}
+
+// 하루에 일정이 여러 개면 목록으로 보여주고, 항목을 누르면 상세 보기
+function showDayEvents(dateStr, events) {
+    if (events.length === 1) return showDetail(events[0]);
+    document.getElementById('modalTitle').innerText = `${events.length} Events`;
+    document.getElementById('modalDate').innerText = formatDateForDisplay(dateStr);
+    const desc = document.getElementById('modalDesc');
+    desc.innerHTML = '';
+    events.forEach(event => {
+        const range = event.start === event.end
+            ? formatDateForDisplay(event.start)
+            : `${formatDateForDisplay(event.start)} - ${formatDateForDisplay(event.end)}`;
+        const item = document.createElement('div');
+        item.className = 'flex items-start gap-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer';
+        item.innerHTML = `
+            <span class="flex-shrink-0 w-1.5 h-10 rounded" style="background:${TYPE_COLORS[event.type] || TYPE_COLORS.default}"></span>
+            <div class="min-w-0">
+                <div class="font-bold text-slate-800 leading-snug">${escapeHtml(event.title)}</div>
+                <div class="text-xs text-slate-400">${range} · ${escapeHtml(event.year)} · ${TYPE_LABELS[event.type] || event.type}</div>
+            </div>
+        `;
+        item.onclick = () => showDetail(event);
+        desc.appendChild(item);
+    });
+    openModal();
+}
+
+function openModal() {
     document.getElementById('eventModal').classList.remove('hidden');
     document.getElementById('eventModal').classList.add('flex');
 }
@@ -375,6 +413,12 @@ function closeModal() {
 document.getElementById('schoolLevel').addEventListener('change', () => {
     updateYearFilterOptions();
     renderCalendar();
+});
+document.getElementById('eventModal').addEventListener('click', e => {
+    if (e.target.id === 'eventModal') closeModal(); // 바깥(배경) 클릭 시 닫기
+});
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
 });
 document.getElementById('academicYear').addEventListener('change', e => changeAcademicYear(Number(e.target.value)));
 document.getElementById('viewMode').addEventListener('change', renderCalendar);
